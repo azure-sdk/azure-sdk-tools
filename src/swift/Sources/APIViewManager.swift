@@ -70,53 +70,69 @@ class APIViewManager {
         }
     }
 
-    /// Handles automatic processing of swiftinterface file, if supplied
-    func process(url sourceUrl: URL) throws -> SourceFile {
-        if sourceUrl.absoluteString.hasSuffix("swift") {
-            return try SourceReader.read(at: sourceUrl.absoluteString)
-        }
-        if sourceUrl.absoluteString.hasSuffix("h") {
-            let args = [String]()
-            let generated = try Request.interface(file: sourceUrl.absoluteString, uuid: NSUUID().uuidString, arguments: args).send()
-            if let match = generated.first(where: { key, _ in
-                return key == "key.sourcetext"
-            }) {
-                let sourceCode = match.value as! String
-
-                func check(line: String) -> String {
-                    var newLine = line
-                    let needsBodyPatterns = [" init(", " init?(", " func ", " deinit"]
-                    for pattern in needsBodyPatterns {
-                        if newLine.contains(pattern) && !newLine.contains("{}") {
-                            newLine = "\(newLine) {}"
-                        }
-                    }
-                    return newLine
-                }
-
-                var newLines = [String]()
-                for line in sourceCode.components(separatedBy: .newlines) {
-                    newLines.append(check(line: line))
-                }
-
-                // write modified swiftinterface file to temp location
-                let sourceDir = sourceUrl.deletingLastPathComponent()
-                let filename = sourceUrl.lastPathComponent
-                let tempFilename = "\(UUID().uuidString)_\(filename)"
-                let tempUrl = sourceDir.appendingPathComponent(tempFilename)
-                try newLines.joined(separator: "\n").write(toFile: tempUrl.absoluteString, atomically: true, encoding: .utf8)
-                defer { try! FileManager.default.removeItem(atPath: tempUrl.absoluteString) }
-                return try SourceReader.read(at: tempUrl.absoluteString)
-            }
-        }
-        throw ToolError.client("Unsupported file type: \(sourceUrl.absoluteString)")
+    func process(swiftFile path: String) throws -> [String: SourceKitRepresentable] {
+        guard let file = File(path: path) else { throw ToolError.client("Unable to open Swift file: \(path)") }
+        return try Structure.init(file: file).dictionary
     }
 
-    func extractPackageName(from sourceUrl: URL) -> String {
+    func process(swiftInterfaceFile path: String) throws -> [String: SourceKitRepresentable] {
+        guard let file = File(path: path) else { throw ToolError.client("Unable to open Swift file: \(path)") }
+        return try Structure.init(file: file).dictionary
+    }
+
+    func process(headerFile path: String) throws -> [String: SourceKitRepresentable] {
+        let args = [String]()
+        return try Request.interface(file: path, uuid: NSUUID().uuidString, arguments: args).send()
+    }
+
+//    /// Handles automatic processing of swiftinterface file, if supplied
+//    func process(url sourceUrl: URL) throws -> SourceFile {
+//        if sourceUrl.absoluteString.hasSuffix("swift") {
+//            return try SourceReader.read(at: sourceUrl.absoluteString)
+//        }
+//        if sourceUrl.absoluteString.hasSuffix("h") {
+//            let args = [String]()
+//            let generated = try Request.interface(file: sourceUrl.absoluteString, uuid: NSUUID().uuidString, arguments: args).send()
+//            if let match = generated.first(where: { key, _ in
+//                return key == "key.sourcetext"
+//            }) {
+//                let sourceCode = match.value as! String
+//
+//                func check(line: String) -> String {
+//                    var newLine = line
+//                    let needsBodyPatterns = [" init(", " init?(", " func ", " deinit"]
+//                    for pattern in needsBodyPatterns {
+//                        if newLine.contains(pattern) && !newLine.contains("{}") {
+//                            newLine = "\(newLine) {}"
+//                        }
+//                    }
+//                    return newLine
+//                }
+//
+//                var newLines = [String]()
+//                for line in sourceCode.components(separatedBy: .newlines) {
+//                    newLines.append(check(line: line))
+//                }
+//
+//                // write modified swiftinterface file to temp location
+//                let sourceDir = sourceUrl.deletingLastPathComponent()
+//                let filename = sourceUrl.lastPathComponent
+//                let tempFilename = "\(UUID().uuidString)_\(filename)"
+//                let tempUrl = sourceDir.appendingPathComponent(tempFilename)
+//                try newLines.joined(separator: "\n").write(toFile: tempUrl.absoluteString, atomically: true, encoding: .utf8)
+//                defer { try! FileManager.default.removeItem(atPath: tempUrl.absoluteString) }
+//                return try SourceReader.read(at: tempUrl.absoluteString)
+//            }
+//        }
+//        throw ToolError.client("Unsupported file type: \(sourceUrl.absoluteString)")
+//    }
+
+    func extractPackageName(from sourceUrl: URL) -> String? {
         let sourcePath = sourceUrl.path
         let pattern = #"sdk\/[^\/]*\/([^\/]*)"#
         let regex = try! NSRegularExpression(pattern: pattern, options: [])
         let result = regex.matches(in: sourcePath, range: NSMakeRange(0, sourcePath.utf16.count))
+        guard result.count > 0 else { return nil }
         let matchRange = Range(result[0].range(at: 1), in: sourcePath)!
         return String(sourcePath[matchRange])
     }
@@ -131,28 +147,58 @@ class APIViewManager {
             SharedLogger.fail("\(sourceUrl.path) does not exist.")
         }
 
-        // collect all swift files in a directory (and subdirectories)
+        var filePaths = [String]()
         if isDir.boolValue {
-            packageName = args.packageName ?? extractPackageName(from: sourceUrl)
+            packageName = args.packageName ?? extractPackageName(from: sourceUrl) ?? "Default"
             let fileEnumerator = FileManager.default.enumerator(atPath: sourceUrl.path)
-            while let itemPath = fileEnumerator?.nextObject() as? String {
-                let itemUrl = sourceUrl.appendingPathComponent(itemPath)
-                do {
-                    let sourceFile = try process(url: itemUrl)
-                    let topLevelDecl = try Parser(source: sourceFile).parse()
-                    declarations.append(topLevelDecl)
-                } catch {
-                    continue
-                }
+            while let item = fileEnumerator?.nextObject() as? String {
+                filePaths.append(sourceUrl.appendingPathComponent(item).absoluteString)
             }
         } else {
-            // otherwise load a single file
-            packageName = sourceUrl.lastPathComponent
-            let sourceFile = try process(url: sourceUrl)
-            let topLevelDecl = try Parser(source: sourceFile).parse()
-            declarations.append(topLevelDecl)
+            packageName = args.packageName ?? sourceUrl.lastPathComponent
+            filePaths.append(sourceUrl.absoluteString)
         }
-        tokenFile = TokenFile(name: packageName, packageName: packageName, versionString: version)
-        tokenFile.process(declarations)
+        for filePath in filePaths {
+            do {
+                var structure: [String: SourceKitRepresentable]? = nil
+                if filePath.hasSuffix("swift") {
+                     structure = try process(swiftFile: filePath)
+                }
+                if filePath.hasSuffix("swiftinterface") {
+                    structure = try process(swiftInterfaceFile: filePath)
+                }
+                if filePath.hasSuffix("h") {
+                    structure = try process(headerFile: filePath)
+                }
+                guard let structure = structure else { continue }
+                let root = Substructure(from: structure)
+                let test = "best"
+            } catch {
+                SharedLogger.fail(error.localizedDescription)
+            }
+        }
+//        // collect all swift files in a directory (and subdirectories)
+//        if isDir.boolValue {
+//            packageName = args.packageName ?? extractPackageName(from: sourceUrl)
+//            let fileEnumerator = FileManager.default.enumerator(atPath: sourceUrl.path)
+//            while let itemPath = fileEnumerator?.nextObject() as? String {
+//                let itemUrl = sourceUrl.appendingPathComponent(itemPath)
+//                do {
+//                    let sourceFile = try process(url: itemUrl)
+//                    let topLevelDecl = try Parser(source: sourceFile).parse()
+//                    declarations.append(topLevelDecl)
+//                } catch {
+//                    continue
+//                }
+//            }
+//        } else {
+//            // otherwise load a single file
+//            packageName = sourceUrl.lastPathComponent
+//            let sourceFile = try process(url: sourceUrl)
+//            let topLevelDecl = try Parser(source: sourceFile).parse()
+//            declarations.append(topLevelDecl)
+//        }
+//        tokenFile = TokenFile(name: packageName, packageName: packageName, versionString: version)
+//        tokenFile.process(declarations)
     }
 }

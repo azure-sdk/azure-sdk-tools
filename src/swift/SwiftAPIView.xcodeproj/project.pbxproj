@@ -26,6 +26,7 @@
 		0AD8C85C26D42F1F00491D59 /* SourceKittenFramework in Frameworks */ = {isa = PBXBuildFile; productRef = 0AD8C85B26D42F1F00491D59 /* SourceKittenFramework */; };
 		0AD8C85F26D430C400491D59 /* SwiftAST in Frameworks */ = {isa = PBXBuildFile; productRef = 0AD8C85E26D430C400491D59 /* SwiftAST */; };
 		0AD8C86126D4314800491D59 /* Errors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AD8C86026D4314800491D59 /* Errors.swift */; };
+		0AD8C94F26D5A12000491D59 /* Substructure.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AD8C94E26D5A12000491D59 /* Substructure.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -66,6 +67,7 @@
 		0AA97B5F26CEFEAC0040A744 /* SwiftSemantics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = SwiftSemantics.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		0AA97B6326CEFEB00040A744 /* SwiftSyntax.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = SwiftSyntax.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		0AD8C86026D4314800491D59 /* Errors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Errors.swift; sourceTree = "<group>"; };
+		0AD8C94E26D5A12000491D59 /* Substructure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Substructure.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -112,6 +114,7 @@
 		0A6A5432268B82D0001006AF /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				0AD8C94D26D5A10F00491D59 /* NewModels */,
 				0A6A545C269CE213001006AF /* Extensions */,
 				0A6A547D26A0D280001006AF /* TokenGeneration */,
 				0A6A5448268B8EED001006AF /* Models */,
@@ -181,6 +184,14 @@
 				0AA97B4526CECFD00040A744 /* swift-syntax */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		0AD8C94D26D5A10F00491D59 /* NewModels */ = {
+			isa = PBXGroup;
+			children = (
+				0AD8C94E26D5A12000491D59 /* Substructure.swift */,
+			);
+			path = NewModels;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -313,6 +324,7 @@
 				0A6A545E269CE223001006AF /* DeclarationModifier+Extensions.swift in Sources */,
 				0A6A5478269F775B001006AF /* TestSwiftFile.swift in Sources */,
 				0A6A5443268B88AE001006AF /* URL+Extensions.swift in Sources */,
+				0AD8C94F26D5A12000491D59 /* Substructure.swift in Sources */,
 				0A6A5445268B89DE001006AF /* APIViewManager.swift in Sources */,
 				0A6A544E268B8F75001006AF /* NavigationItem.swift in Sources */,
 				0A6A5441268B886D001006AF /* Logger.swift in Sources */,
