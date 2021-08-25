@@ -171,7 +171,7 @@ class APIViewManager {
                     structure = try process(headerFile: filePath)
                 }
                 guard let structure = structure else { continue }
-                let root = Substructure(from: structure)
+                let root = SwiftFileModel(from: structure)
                 let test = "best"
             } catch {
                 SharedLogger.fail(error.localizedDescription)
